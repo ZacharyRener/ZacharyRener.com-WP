@@ -1,0 +1,50 @@
+name: Deploy to WPEngine (Main)
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - "main"
+
+jobs:
+  zr-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.SM_TOKEN }}
+          submodules: true
+          fetch-depth: 0
+
+      - name: Restore Timestamps
+        uses: chetan/git-restore-mtime-action@v1
+
+      #
+      # Run build
+      #
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "18.3.0"
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+
+      - name: Install dependencies
+        working-directory: ./wp-content/themes/afcny/_html
+        run: npm install
+
+      - name: Build
+        working-directory: ./wp-content/themes/afcny/_html
+        run: gulp build
+
+      #
+      # Deploy all
+      #
+      - name: Deploy to WP Engine
+        uses: wpengine/github-action-wpe-site-deploy@v3
+        with:
+          # Deploy vars
+          WPE_SSHG_KEY_PRIVATE: ${{ secrets.WP_ENGINE_DEPLOY }}
+          WPE_ENV: afcny
+          FLAGS: -azv --delete --exclude-from=.deployignore
+          CACHE_CLEAR: TRUE
